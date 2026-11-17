@@ -1,0 +1,9 @@
+.DS_Store
+bin/
+*.log
+**/__pycache__/
+*.pyc
+.venv/
+data/structures/*
+!data/structures/.gitkeep
+/data/vecoli-replay.json

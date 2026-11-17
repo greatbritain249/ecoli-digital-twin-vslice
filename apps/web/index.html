@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#08131d" />
+  <title>Cellscope — E. coli Digital Twin</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.181.2/examples/jsm/"}}
+  </script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brandmark"><span class="brandmark-inner"></span></div><div><strong>CELLSCOPE</strong><small>MOLECULAR SYSTEMS LAB</small></div></div>
+      <div class="top-center"><span class="breadcrumb">Projects</span><span class="chev">/</span><span class="breadcrumb">Bacterial Twins</span><span class="chev">/</span><strong>E. coli K-12</strong></div>
+      <div class="top-actions"><span class="prototype">RESEARCH PROTOTYPE</span><span class="status"><span class="dot" id="conn-dot"></span><span id="connection">CONNECTING</span></span></div>
+    </header>
+    <div class="workarea">
+      <aside class="sidebar sidebar-left">
+        <div class="section-kicker">DIGITAL ORGANISM <span class="tiny-asterisk">✳</span></div>
+        <div class="species-heading"><span class="species-subtitle">Escherichia</span><h1>coli<span class="title-dot">.</span></h1></div>
+        <p class="small-desc">An interactive, multiscale view of cellular architecture and a simplified physiology simulation.</p>
+        <div class="strain"><span class="small-dot"></span>K-12 MG1655 <span class="strain-caption">REFERENCE</span></div>
+        <div class="side-divider"></div>
+        <div class="heading-row"><div class="section-kicker">ENVIRONMENT</div><span class="mini-label">01 / 03</span></div>
+        <label class="input-label" for="medium-select">Nutrient conditions</label>
+        <div class="select-wrap"><select id="medium-select"><option value="rich">Glucose rich medium</option><option value="limited">Nutrient limited</option><option value="starved">Starvation</option></select><span>⌄</span></div>
+        <div class="environment-desc" id="medium-description">Substrate availability supports active metabolism and cell growth.</div>
+        <div class="side-divider"></div>
+        <div class="heading-row"><div class="section-kicker">SIMULATION</div><span class="mini-label">02 / 03</span></div>
+        <div class="sim-status"><span id="sim-indicator" class="idle-ring"></span><div><div class="sim-status-head" id="sim-title">Simulation ready</div><div class="sim-status-sub">Coarse-grained model v1</div></div></div>
+        <div class="time-box"><span>SIMULATION TIME</span><div><strong id="time-value">00:00</strong><em>min</em></div></div>
+        <div class="button-row"><button id="toggle-sim" class="btn-primary" disabled><span id="play-icon">▶</span><span id="play-label">Start simulation</span></button><button id="reset-sim" title="Reset simulation" class="btn-square" disabled>↻</button></div>
+        <button id="toggle-replay" class="btn-secondary" disabled>↪ Load sample trajectory</button>
+        <p class="hint" id="model-hint">2 simulated minutes per frame update (~0.45 sec real-time)</p>
+        <div class="side-divider"></div>
+        <div class="heading-row"><div class="section-kicker">CELL LAYERS</div><span class="mini-label">03 / 03</span></div>
+        <div class="layer-list">
+          <label><span><i class="legend-color membrane"></i>Cell envelope</span><input type="checkbox" data-layer="membrane" checked /></label>
+          <label><span><i class="legend-color nucleoid"></i>DNA nucleoid</span><input type="checkbox" data-layer="nucleoid" checked /></label>
+          <label><span><i class="legend-color ribosome"></i>Ribosomes</span><input type="checkbox" data-layer="ribosome" checked /></label>
+          <label><span><i class="legend-color rna_polymerase"></i>RNA polymerase</span><input type="checkbox" data-layer="rna_polymerase" checked /></label>
+          <label><span><i class="legend-color atp_synthase"></i>ATP synthase</span><input type="checkbox" data-layer="atp_synthase" checked /></label>
+          <label><span><i class="legend-color flagella"></i>Flagella and pili</span><input type="checkbox" data-layer="flagella" checked /></label>
+        </div>
+        <div class="side-note"><strong>Data fidelity note</strong><p>Protein structures are experimental. Cellular placements and visible counts are procedural illustrations, not single-cell measurements.</p></div>
+      </aside>
+      <main class="main-content">
+        <div class="scene-wrap" id="scene-wrap">
+          <canvas id="scene-canvas" aria-label="Interactive 3D bacterium visualization"></canvas>
+          <div class="scene-overlay-top"><div><span class="pill-ghost"><span class="pulsedot"></span> LIVE CELL VIEW</span><h2>Explore the cell.</h2><p>Rotate · zoom · select molecular structures</p></div><div class="scene-tools"><button id="reset-camera" title="Reset camera">◎</button><button id="auto-rotate" title="Toggle auto-rotation">⟳</button></div></div>
+          <div class="scene-axis">X <span>↗</span> Y <span>↖</span> Z <span>◌</span></div>
+          <div class="scale-info"><span class="scale-line"></span> SCHEMATIC 3D SCENE · CELL SIZE ~2.2 µm</div>
+          <div class="scene-legend"><span class="legend-title">VISUALIZATION KEY</span><span><i class="legend-color ribosome"></i> Ribosome</span><span><i class="legend-color rna_polymerase"></i> RNA polymerase</span><span><i class="legend-color atp_synthase"></i> ATP synthase</span></div>
+          <div id="three-error" class="three-error" hidden>3D libraries could not load. Please connect to the internet so the pinned Three.js CDN modules can load, then refresh.</div>
+        </div>
+        <section class="telemetry"><div class="telemetry-header"><div><span class="section-kicker">LIVE CELL TELEMETRY</span><h3>Physiological state</h3></div><span class="live-readout"><span class="dot"></span> SYNCHRONIZED MODEL STATE</span></div>
+          <div class="metric-grid">
+            <article class="metric"><div class="metric-name"><i class="metric-icon amber">✦</i> ATP concentration <span>mM</span></div><div class="metric-value"><strong id="atp-value">2.40</strong><span>mM</span></div><canvas id="atp-chart" width="300" height="72"></canvas></article>
+            <article class="metric"><div class="metric-name"><i class="metric-icon mint">◈</i> Glucose <span>mM</span></div><div class="metric-value"><strong id="glucose-value">3.40</strong><span>mM</span></div><canvas id="glucose-chart" width="300" height="72"></canvas></article>
+            <article class="metric"><div class="metric-name"><i class="metric-icon purple">◆</i> Biomass <span>fg</span></div><div class="metric-value"><strong id="biomass-value">280.0</strong><span>fg</span></div><canvas id="biomass-chart" width="300" height="72"></canvas></article>
+            <article class="metric"><div class="metric-name"><i class="metric-icon blue">⌁</i> Translation <span>relative</span></div><div class="metric-value"><strong id="translation-value">0.00</strong><span>0—1</span></div><canvas id="translation-chart" width="300" height="72"></canvas></article>
+          </div>
+        </section>
+      </main>
+      <aside class="sidebar sidebar-right">
+        <div class="right-header"><span class="section-kicker">MOLECULAR EXPLORER</span><span class="molecule-count">05 STRUCTURES</span></div>
+        <h3 class="right-title">Inside the cell<span>.</span></h3>
+        <p class="right-description">Select a structure to learn about its function and inspect experimental coordinates.</p>
+        <div id="structure-list" class="structure-list" role="listbox" aria-label="Molecular structures"></div>
+        <div class="side-divider"></div>
+        <div class="section-kicker">STRUCTURE DETAILS</div>
+        <div class="detail" id="structure-detail"><div class="detail-empty">Loading scientific catalog…</div></div>
+        <div class="right-bottom"><span class="source-icon">⌘</span><span>Data from <strong>RCSB PDB</strong><small>Click inspect for an atomic structure</small></span></div>
+      </aside>
+    </div>
+    <footer class="footer"><span>CELLSCOPE / E. COLI DIGITAL TWIN</span><span>Educational dynamics · structures from RCSB PDB · not a validated whole-cell reconstruction</span><span>v0.1.0</span></footer>
+  </div>
+  <div id="inspector" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="inspector-title">
+    <div class="modal-card"><div class="modal-header"><div><span class="section-kicker">ATOMIC STRUCTURE VIEWER</span><h3 id="inspector-title">Inspect structure</h3><p id="inspector-caption">Experimental coordinates from RCSB PDB</p></div><button id="close-inspector" aria-label="Close inspector">✕</button></div>
+      <div class="molstar-wrap" id="molstar-wrap"><div id="molstar-container"></div><div class="molstar-loading" id="molstar-loading">Loading Mol* viewer and experimental structure…</div></div>
+      <div class="modal-footer"><span id="molstar-note">A separate experimental model, not the exact in-cell coordinates.</span><a id="rcsb-link" href="https://www.rcsb.org/" target="_blank" rel="noreferrer noopener">Open source at RCSB ↗</a></div>
+    </div>
+  </div>
+  <script>
+  window.addEventListener('error', function(event) {
+    if (event.target && event.target.tagName === 'SCRIPT' || (event.message && event.message.includes('module'))) {
+      const alert = document.getElementById('three-error'); if (alert) alert.hidden = false;
+    }
+  }, true);
+  </script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

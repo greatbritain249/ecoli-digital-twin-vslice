@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "reference_strain": "Escherichia coli K-12 MG1655 (reference for cell geometry)",
+  "note": "Cell positions and visible counts are illustrative, not experimentally measured for a single cell. Experimental structures may come from different E. coli strains or conditions.",
+  "structures": [
+    {"kind":"ribosome","name":"70S ribosome","category":"Translation","pdb_id":"4YBB","pdb_strain":"E. coli K-12","color":"#ffc47d","description":"A molecular machine that translates messenger RNA into proteins. Its activity in the visualization responds to the coarse-grained translation variable.","representation":"subsampled particles","confidence":"experimental atomic structure; illustrative cellular placement","location":"cytoplasm"},
+    {"kind":"rna_polymerase","name":"RNA polymerase","category":"Transcription","pdb_id":"4YG2","pdb_strain":"E. coli O157:H7 (not K-12)","color":"#db9af7","description":"An enzyme complex that reads DNA and synthesizes RNA. The displayed structure is from another E. coli strain, identified for context rather than asserted as K-12-specific.","representation":"subsampled particles","confidence":"experimental structure; illustrative localization and count","location":"nucleoid-associated"},
+    {"kind":"atp_synthase","name":"ATP synthase","category":"Energy","pdb_id":"5T4O","pdb_strain":"E. coli (strain annotation varies by chain)","color":"#7fe4d4","description":"Membrane complex that uses the proton motive force to synthesize ATP. The scene brightens these markers when the simplified energy state is higher.","representation":"subsampled membrane markers","confidence":"experimental structure; illustrative localization and count","location":"inner membrane"},
+    {"kind":"nucleoid","name":"Bacterial nucleoid","category":"Genome","pdb_id":null,"pdb_strain":"K-12 reference geometry","color":"#9ab6ff","description":"The DNA-rich cytoplasmic region. The drawn looping strands are a schematic representation, not the measured chromosome conformation.","representation":"illustrative polymer curves","confidence":"schematic topology","location":"central cytoplasm"},
+    {"kind":"membrane","name":"Cell envelope","category":"Architecture","pdb_id":null,"pdb_strain":"K-12 reference geometry","color":"#46dcc9","description":"A Gram-negative cell envelope: outer membrane, peptidoglycan/periplasm, and inner membrane. Thicknesses and scaling are stylized for legibility.","representation":"transparent spherocylinders","confidence":"schematic geometry","location":"cell periphery"}
+  ]
+}
