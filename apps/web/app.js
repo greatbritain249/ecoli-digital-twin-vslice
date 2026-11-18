@@ -12,6 +12,13 @@ const MEDIUM_DESCRIPTIONS = {
   limited: 'A small substrate feed slows translation and growth as glucose is consumed.',
   starved: 'No new glucose is supplied. ATP and translation activity gradually decline.',
 };
+// Renderer profiles limit pixel fill, draw frequency, and instance updates.
+// The scene does not require 60 FPS when paused or merely displaying telemetry.
+const RENDER_PROFILES = {
+  performance: {pixelRatio: 1.0, fps: 24, instanceIntervalMs: 160, pixelBudget: 1200000},
+  balanced: {pixelRatio: 1.35, fps: 36, instanceIntervalMs: 100, pixelBudget: 2200000},
+  quality: {pixelRatio: 2.0, fps: 60, instanceIntervalMs: 45, pixelBudget: 4000000},
+};
 const CHARTS = [
   ['atp-chart', 'atp_mM', '#f7be78'],
   ['glucose-chart', 'glucose_mM', '#53d7c3'],
@@ -123,7 +130,15 @@ function createViewer(data) {
   const canvas = el('scene-canvas');
   const container = el('scene-wrap');
   const renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true, powerPreference: 'high-performance'});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  let profile = RENDER_PROFILES.balanced;
+  let dirty = true;
+  let markerDirty = true;
+  let suspended = false;
+  let inViewport = true;
+  let lastInputAt = performance.now();
+  function invalidate() { dirty = true; }
+  // A high-DPI screen can otherwise force millions of blended pixels per frame.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, profile.pixelRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.32;
@@ -169,9 +184,9 @@ function createViewer(data) {
     const g = new THREE.Group(); g.userData.kind=kind; cell.add(g); layerGroups[kind]=g;
   }
   const clickable = [];
-  const outerMat = new THREE.MeshPhysicalMaterial({color:'#36b8b1',transparent:true,opacity:.14,roughness:.25,metalness:.12,side:THREE.DoubleSide,depthWrite:false,clearcoat:1});
+  const outerMat = new THREE.MeshStandardMaterial({color:'#36b8b1',transparent:true,opacity:.14,roughness:.36,metalness:.06,side:THREE.FrontSide,depthWrite:false});
   const middleMat = new THREE.MeshBasicMaterial({color:'#7ce6d9',transparent:true,opacity:.085,wireframe:true,depthWrite:false});
-  const innerMat = new THREE.MeshPhysicalMaterial({color:'#4cb9d2',transparent:true,opacity:.09,roughness:.38,side:THREE.DoubleSide,depthWrite:false});
+  const innerMat = new THREE.MeshStandardMaterial({color:'#4cb9d2',transparent:true,opacity:.09,roughness:.38,side:THREE.FrontSide,depthWrite:false});
   function envelope(radius,mat) {
     const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, 2*data.cell.body_half_length_units, 12, 48),mat);
     mesh.rotation.z = Math.PI/2;
@@ -181,42 +196,46 @@ function createViewer(data) {
   }
   envelope(1.5,outerMat); envelope(1.43,middleMat); envelope(1.34,innerMat);
   // Small envelope rings lend 3D depth; not resolved peptidoglycan architecture.
+  const ringGeometry=new THREE.TorusGeometry(1.495,.004,4,48);
+  const ringMaterial=new THREE.MeshBasicMaterial({color:'#72f1dc',transparent:true,opacity:.12,depthWrite:false});
   for(let i=-10;i<=10;i++) {
     const x=i*.24;
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.495,.004,4,70),new THREE.MeshBasicMaterial({color:'#72f1dc',transparent:true,opacity:.12,depthWrite:false}));
+    const ring=new THREE.Mesh(ringGeometry,ringMaterial);
     ring.position.x=x;ring.rotation.y=Math.PI/2;layerGroups.membrane.add(ring);
   }
 
   // Looped stylized chromosome filaments. Not DNA sequence or measured fold.
   for(let strand=0;strand<13;strand++) {
     const points=[];
-    for(let j=0;j<=150;j++) {
-      const t=j/150, a=t*Math.PI*15+strand*.79;
+    for(let j=0;j<=100;j++) {
+      const t=j/100, a=t*Math.PI*15+strand*.79;
       const x=-1.85+3.7*t;
       const radius=.34 + .14*Math.sin(2*Math.PI*t*2 + strand);
       points.push(new THREE.Vector3(x,Math.cos(a)*radius+.15*Math.sin(t*18+strand),Math.sin(a)*radius+.15*Math.cos(t*20+strand)));
     }
     const curve=new THREE.CatmullRomCurve3(points);
-    const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,440,.009+strand%3*.002,5,false),new THREE.MeshStandardMaterial({color:strand%3===0?'#e1beec':'#95b9ff',emissive:'#4d6bbd',emissiveIntensity:.3,transparent:true,opacity:.72,roughness:.4}));
+    const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,220,.009+strand%3*.002,4,false),new THREE.MeshStandardMaterial({color:strand%3===0?'#e1beec':'#95b9ff',emissive:'#4d6bbd',emissiveIntensity:.3,transparent:true,opacity:.72,roughness:.4}));
     mesh.userData.kind='nucleoid';layerGroups.nucleoid.add(mesh);clickable.push(mesh);
   }
 
   // Appendages: representative flagella and pili geometry.
   for(let strand=0;strand<5;strand++) {
     const points=[];const anchor=(strand%2===0?1:-1);
-    for(let j=0;j<=190;j++) {
-      const t=j/190, coil=t*19+strand*2.2;
+    for(let j=0;j<=100;j++) {
+      const t=j/100, coil=t*19+strand*2.2;
       points.push(new THREE.Vector3(anchor*(3.8+t*3.3),.31*Math.sin(coil)+(.35*strand-.7)*(1-t*.35),.32*Math.cos(coil)+Math.sin(strand*2)*.6));
     }
-    layerGroups.flagella.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),240,.018,6,false),new THREE.MeshStandardMaterial({color:'#77cfcd',emissive:'#194d53',emissiveIntensity:.4,transparent:true,opacity:.78})));
+    layerGroups.flagella.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),120,.018,5,false),new THREE.MeshStandardMaterial({color:'#77cfcd',emissive:'#194d53',emissiveIntensity:.4,transparent:true,opacity:.78})));
   }
+  const piliSegments=[];
   for(let i=0;i<38;i++) {
     const x=-2.3 + i*.124;
     const a=i*2.39996;
     const v1=new THREE.Vector3(x,Math.sin(a)*1.49,Math.cos(a)*1.49);
     const v2=new THREE.Vector3(x + Math.sin(i*3)*.12,Math.sin(a)*1.91,Math.cos(a)*1.91);
-    layerGroups.flagella.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([v1,v2]),new THREE.LineBasicMaterial({color:'#6baeb4',transparent:true,opacity:.37})));
+    piliSegments.push(v1,v2);
   }
+  layerGroups.flagella.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(piliSegments),new THREE.LineBasicMaterial({color:'#6baeb4',transparent:true,opacity:.37})));
 
   const instanced = new Map();
   const kinds = ['ribosome','rna_polymerase','atp_synthase'];
@@ -256,10 +275,22 @@ function createViewer(data) {
   function resize() {
     const rect=container.getBoundingClientRect();
     if(rect.width<10||rect.height<10)return;
+    const deviceRatio = window.devicePixelRatio || 1;
+    const pixelBudgetRatio = Math.sqrt(profile.pixelBudget / (rect.width * rect.height));
+    renderer.setPixelRatio(Math.max(0.6, Math.min(deviceRatio, profile.pixelRatio, pixelBudgetRatio)));
     renderer.setSize(rect.width,rect.height,false);
     camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();
+    invalidate();
   }
   const observer = new ResizeObserver(resize); observer.observe(container);resize();
+  const viewportObserver = new IntersectionObserver(entries => {
+    inViewport = !!entries[0]?.isIntersecting;
+    if (inViewport) invalidate();
+  }, {threshold: 0});
+  viewportObserver.observe(container);
+  controls.addEventListener('change', () => {lastInputAt=performance.now();invalidate();});
+  controls.addEventListener('start', () => {lastInputAt=performance.now();invalidate();});
+  canvas.addEventListener('wheel', invalidate, {passive:true});
   const raycaster=new THREE.Raycaster();
   const mouse=new THREE.Vector2();
   let pointerDown=null;
@@ -277,7 +308,6 @@ function createViewer(data) {
   canvas.addEventListener('pointerleave',()=>{pointerDown=null;});
 
   const dummy=new THREE.Object3D();
-  const v3=new THREE.Vector3();
   let tickValue=0;
   function updateState(snapshot) {
     tickValue=snapshot.time_min;
@@ -289,30 +319,46 @@ function createViewer(data) {
     instanced.get('atp_synthase').mesh.material.emissiveIntensity=.10+.95*atp;
     instanced.get('rna_polymerase').mesh.material.emissiveIntensity=.09+.30*active;
     outerMat.opacity=.11 + .04*baseScale;
+    invalidate();
   }
   function highlight(kind) {
     instanced.forEach(({mesh},key)=>{
       mesh.material.opacity=key===kind?1:.78;
       mesh.material.emissiveIntensity=key===kind?.65:.14;
     });
+    markerDirty = true;
+    invalidate();
   }
-  let frame=0;
+  let lastRenderAt = -Infinity;
+  let lastInstanceUpdateAt = -Infinity;
+  let fpsStart = 0, framesRendered = 0;
   function animate(t) {
     requestAnimationFrame(animate);
-    const time=t*.001;
-    controls.autoRotate=rotating;
+    if (document.hidden || suspended || !inViewport) return;
+    const minInterval = 1000 / profile.fps;
+    if (t - lastRenderAt < minInterval) return;
+    const moving = rotating || !!state?.running;
+    const orbitSettling = t - lastInputAt < 950;
+    if (!moving && !orbitSettling && !dirty) {
+      if (el('fps-counter').textContent !== 'IDLE') el('fps-counter').textContent = 'IDLE';
+      return;
+    }
+    lastRenderAt = t;
+    const time = t * .001;
+    controls.autoRotate = rotating;
     controls.update();
-    // Animated motions are illustrative, correlated with the simulated state.
-    const translation=state?.translation_activity ?? .45;
-    const atp=state?.energy_index ?? .7;
-    if(frame++%2===0){
-      for(const [kind,{instances,mesh}] of instanced){
-        const activity=kind==='ribosome'?translation:kind==='atp_synthase'?atp:translation*.65;
-        for(let i=0;i<instances.length;i++){
-          const item=instances[i];
-          v3.set(...item.position);
-          const pulse=1+0.15*activity*Math.sin(time*3.6+item.phase);
-          dummy.position.copy(v3);
+    const translation = state?.translation_activity ?? .45;
+    const atp = state?.energy_index ?? .7;
+    // Avoid rewriting every instance matrix on each GPU draw.
+    if (markerDirty || (moving && t - lastInstanceUpdateAt >= profile.instanceIntervalMs)) {
+      lastInstanceUpdateAt = t;
+      markerDirty = false;
+      for (const [kind,{instances,mesh}] of instanced) {
+        const activity = kind==='ribosome' ? translation : kind==='atp_synthase' ? atp : translation*.65;
+        for (let i=0; i<instances.length; i++) {
+          const item = instances[i];
+          dummy.position.set(item.position[0], item.position[1], item.position[2]);
+          const pulse = 1+0.15*activity*Math.sin(time*3.6+item.phase);
           dummy.rotation.set(0,item.phase+time*.05,item.phase/2);
           dummy.scale.setScalar(item.radius*1.2*pulse*(selected===kind?1.16:1));
           dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
@@ -320,21 +366,34 @@ function createViewer(data) {
         mesh.instanceMatrix.needsUpdate=true;
       }
     }
-    layerGroups.flagella.rotation.x=Math.sin(time*(.22+atp*.6))*.055;
-    layerGroups.nucleoid.rotation.x=Math.sin(tickValue*.025+time*.3)*.025;
+    if (moving) {
+      layerGroups.flagella.rotation.x=Math.sin(time*(.22+atp*.6))*.055;
+      layerGroups.nucleoid.rotation.x=Math.sin(tickValue*.025+time*.3)*.025;
+    }
     renderer.render(world,camera);
+    dirty = false;
+    framesRendered++;
+    if (t - fpsStart >= 1100) {
+      el('fps-counter').textContent = `${Math.round(framesRendered*1000/(t-fpsStart))} FPS`;
+      fpsStart=t;framesRendered=0;
+    }
   }
   requestAnimationFrame(animate);
   el('reset-camera').addEventListener('click',()=>{
-    camera.position.copy(initialCamera);controls.target.set(0,0,0);controls.update();
+    camera.position.copy(initialCamera);controls.target.set(0,0,0);controls.update();invalidate();
   });
   el('auto-rotate').addEventListener('click',()=>{
-    rotating=!rotating;el('auto-rotate').classList.toggle('active',rotating);
+    rotating=!rotating;el('auto-rotate').classList.toggle('active',rotating);invalidate();
   });
   document.querySelectorAll('[data-layer]').forEach(box=>{
-    box.addEventListener('change',()=>{layerGroups[box.dataset.layer].visible=box.checked;});
+    box.addEventListener('change',()=>{layerGroups[box.dataset.layer].visible=box.checked;invalidate();});
   });
-  return {highlight,updateState};
+  el('render-quality').addEventListener('change', event => {
+    profile=RENDER_PROFILES[event.target.value] || RENDER_PROFILES.balanced;
+    resize();
+    lastRenderAt=-Infinity;
+  });
+  return {highlight,updateState,setSuspended(value){suspended=!!value;invalidate();}};
 }
 
 function plot(canvas, numbers, color) {
@@ -430,6 +489,7 @@ function loadMolstarScript() {
 async function openInspector(info) {
   if(!info.pdb_id)return;
   el('inspector').hidden=false;
+  three?.setSuspended(true);
   el('inspector-title').textContent=`${info.name} · ${info.pdb_id}`;
   el('inspector-caption').textContent=`Experimental structure: ${info.pdb_strain}`;
   el('rcsb-link').href='https://www.rcsb.org/structure/'+encodeURIComponent(info.pdb_id);
@@ -439,7 +499,8 @@ async function openInspector(info) {
     await loadMolstarScript();
     if(!molstarViewer){
       molstarViewer=await window.molstar.Viewer.create('molstar-container',{
-        layoutIsExpanded:false,layoutShowControls:true,layoutShowSequence:true,
+        layoutIsExpanded:false,layoutShowControls:true,layoutShowSequence:false,
+        disableAntialiasing:true,pixelScale:0.85,
         layoutShowLog:false,layoutShowLeftPanel:false,pdbProvider:'rcsb',
         viewportShowExpand:false,viewportShowSelectionMode:true
       });
@@ -467,9 +528,13 @@ function bindControls(){
     el('medium-description').textContent=MEDIUM_DESCRIPTIONS[ev.target.value];
     action({action:'set_medium',medium:ev.target.value});
   });
-  el('close-inspector').addEventListener('click',()=>{el('inspector').hidden=true;});
-  el('inspector').addEventListener('click',ev=>{if(ev.target===el('inspector'))el('inspector').hidden=true;});
-  document.addEventListener('keydown',ev=>{if(ev.key==='Escape')el('inspector').hidden=true;});
+  function closeInspector() {
+    el('inspector').hidden=true;
+    three?.setSuspended(false);
+  }
+  el('close-inspector').addEventListener('click',closeInspector);
+  el('inspector').addEventListener('click',ev=>{if(ev.target===el('inspector'))closeInspector();});
+  document.addEventListener('keydown',ev=>{if(ev.key==='Escape')closeInspector();});
   window.addEventListener('pagehide',()=>{events?.close();});
 }
 async function bootstrap() {

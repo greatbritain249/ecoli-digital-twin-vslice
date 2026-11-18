@@ -186,3 +186,37 @@ make run
 This first version is intentionally modest scientifically and actually usable
 as an integration platform. Do not deploy as a research-grade or safety-critical
 predictive bacterial model without validation.
+
+## UI responsiveness and rendering quality (v0.1.1)
+
+The browser scene has an adjustable **Render** control near the top-right of the
+3D viewport:
+
+| Profile | Maximum render rate | Pixel ratio cap | Instance animations |
+|---|---:|---:|---:|
+| Performance | 24 FPS | 1.0 | Approximately 6 Hz |
+| Balanced (default) | 36 FPS | 1.35 | Approximately 10 Hz |
+| High | 60 FPS | 2.0 | Approximately 22 Hz |
+
+Actual FPS depends on available GPU and browser performance. A per-profile
+render-target pixel budget also limits the resolution on large monitors.
+Frames are skipped while the scene is outside the viewport, browser tab is
+hidden, or the atomic inspector is open. When the simulation and camera are
+idle, rendering stops until an interaction or new state update occurs.
+
+The CSS also explicitly honors `[hidden]`, fixing a blocking overlay that
+could trap pointer events over the UI. The full-screen molecular inspector is
+still intentionally visible after the user clicks **Inspect atomic structure**.
+
+On a sluggish browser, start with **Performance**, close other GPU-heavy tabs,
+then test **Balanced**. Click **Inspect atomic structure** only when needed:
+large macromolecular complexes (especially 4YBB) require much more GPU memory
+than the cell-scale marker model. The inspector uses a separate Mol* WebGL
+context. Safari or integrated-GPU hardware may benefit from Performance mode.
+
+**Note:** the scene still needs a network connection for its pinned Three.js
+ES modules, and Mol* needs its own CDN download. If the viewer stays blank,
+inspect the browser developer console and check network requests to jsDelivr.
+
+If port 8080 is occupied, the Go server's supported override is
+`ECOLI_ADDR=:8081 go run ./cmd/server` (not the `PORT` environment variable).

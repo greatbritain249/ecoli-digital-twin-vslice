@@ -10,6 +10,12 @@
 
 .btn-secondary{margin-top:9px;height:36px;width:100%;border:1px solid #346367;background:#102832;color:#a0d5d1;border-radius:6px;font-size:10px;font-weight:650}.btn-secondary:hover:not(:disabled){background:#173a41}.btn-secondary.active{color:#e2c4fa;border-color:#6e5781;background:#252138}
 
-[hidden] {
-  display: none !important;
-}
+/* An author display rule must never override HTML's hidden attribute.
+   Otherwise the full-screen inspector catches ALL pointer events at startup. */
+[hidden] { display: none !important; }
+.quality-control { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; color: #b1cbd1; white-space: nowrap; padding: 4px; border-radius: 5px; background: #102430; border: 1px solid #2d4b58; }
+.quality-control select { color: #dceced; background: #102430; border: 0; font-size: 10px; cursor: pointer; min-width: 76px; padding: 3px; }
+.fps-counter { min-width: 43px; font-size: 10px; color: #95bbba; font-variant-numeric: tabular-nums; text-align: center; }
+@media(max-width:710px) { .fps-counter { display:none; } .quality-control { font-size: 9px; } .quality-control select { min-width: 60px; } }
+.scene-tools { align-items: flex-start; }
+.quality-control { height: 35px; }

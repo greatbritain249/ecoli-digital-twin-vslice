@@ -51,7 +51,7 @@
       <main class="main-content">
         <div class="scene-wrap" id="scene-wrap">
           <canvas id="scene-canvas" aria-label="Interactive 3D bacterium visualization"></canvas>
-          <div class="scene-overlay-top"><div><span class="pill-ghost"><span class="pulsedot"></span> LIVE CELL VIEW</span><h2>Explore the cell.</h2><p>Rotate · zoom · select molecular structures</p></div><div class="scene-tools"><button id="reset-camera" title="Reset camera">◎</button><button id="auto-rotate" title="Toggle auto-rotation">⟳</button></div></div>
+          <div class="scene-overlay-top"><div><span class="pill-ghost"><span class="pulsedot"></span> LIVE CELL VIEW</span><h2>Explore the cell.</h2><p>Rotate · zoom · select molecular structures</p></div><div class="scene-tools"><label class="quality-control" for="render-quality">Render <select id="render-quality" aria-label="Rendering quality"><option value="performance">Performance</option><option value="balanced" selected>Balanced</option><option value="quality">High</option></select></label><span class="fps-counter" id="fps-counter" title="Actual viewer draw rate">— FPS</span><button id="reset-camera" title="Reset camera">◎</button><button id="auto-rotate" title="Toggle auto-rotation">⟳</button></div></div>
           <div class="scene-axis">X <span>↗</span> Y <span>↖</span> Z <span>◌</span></div>
           <div class="scale-info"><span class="scale-line"></span> SCHEMATIC 3D SCENE · CELL SIZE ~2.2 µm</div>
           <div class="scene-legend"><span class="legend-title">VISUALIZATION KEY</span><span><i class="legend-color ribosome"></i> Ribosome</span><span><i class="legend-color rna_polymerase"></i> RNA polymerase</span><span><i class="legend-color atp_synthase"></i> ATP synthase</span></div>
@@ -77,7 +77,7 @@
         <div class="right-bottom"><span class="source-icon">⌘</span><span>Data from <strong>RCSB PDB</strong><small>Click inspect for an atomic structure</small></span></div>
       </aside>
     </div>
-    <footer class="footer"><span>CELLSCOPE / E. COLI DIGITAL TWIN</span><span>Educational dynamics · structures from RCSB PDB · not a validated whole-cell reconstruction</span><span>v0.1.0</span></footer>
+    <footer class="footer"><span>CELLSCOPE / E. COLI DIGITAL TWIN</span><span>Educational dynamics · structures from RCSB PDB · not a validated whole-cell reconstruction</span><span>v0.1.1</span></footer>
   </div>
   <div id="inspector" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="inspector-title">
     <div class="modal-card"><div class="modal-header"><div><span class="section-kicker">ATOMIC STRUCTURE VIEWER</span><h3 id="inspector-title">Inspect structure</h3><p id="inspector-caption">Experimental coordinates from RCSB PDB</p></div><button id="close-inspector" aria-label="Close inspector">✕</button></div>
